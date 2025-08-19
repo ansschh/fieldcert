@@ -115,9 +115,19 @@ def main():
     da_obs_sel = da_obs.sel(time=valid_da, method="nearest", tolerance=tol)
 
     # Convert to arrays and filter by years and valid data
-    print("[INFO] Loading data into memory...")
-    yhat_full = da_fc.values  # (T,H,W)
-    y_full = da_obs_sel.values  # (T,H,W)
+    print(f"[INFO] Creating small subset for efficient processing...")
+    
+    # Take only first 100 time steps to avoid memory issues with full dataset
+    max_times = min(100, da_fc_sel.sizes['time'], da_obs_sel.sizes['time'])
+    print(f"[INFO] Processing first {max_times} time steps to avoid memory overload")
+    
+    da_fc_subset = da_fc_sel.isel(time=slice(0, max_times))
+    da_obs_subset = da_obs_sel.isel(time=slice(0, max_times))
+    
+    print(f"[INFO] Loading forecast subset...")
+    yhat_full = da_fc_subset.values  # Much smaller, manageable size
+    print(f"[INFO] Loading observation subset...")
+    y_full = da_obs_subset.values  # Much smaller, manageable size
     
     print(f"[INFO] Data shapes - forecast: {yhat_full.shape}, obs: {y_full.shape}")
 
