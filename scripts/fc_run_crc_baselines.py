@@ -101,9 +101,10 @@ def main():
     crc_res = crc.fit_for_regime(
         preds=yhat_cal,
         truths=y_cal,
+        threshold=args.threshold,
         margins=margins_cal,
         block_ids=block_ids_cal,
-        regime_key=None,  # No regime stratification for this simple example
+        spatial_weights=Wts,
     )
     lam_star = crc_res.lambda_star
     print(f"[INFO] CRC calibrated lambda* = {lam_star:.4f}")
