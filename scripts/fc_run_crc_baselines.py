@@ -82,7 +82,16 @@ def main():
     crc = CRCCalibrator(settings=settings)
 
     # Physics-aware margin: gradient magnitude of forecast
-    margins_cal = build_margin_field(yhat_cal, method="grad_mag", normalize=True)
+    # Handle ensemble data by taking ensemble mean first
+    if yhat_cal.ndim == 5:  # (T, ensemble, lead, H, W)
+        yhat_cal_mean = yhat_cal.mean(axis=1)  # Average over ensemble
+        if yhat_cal_mean.shape[1] == 1:  # Remove singleton lead dimension
+            yhat_cal_mean = yhat_cal_mean.squeeze(axis=1)  # (T, H, W)
+    else:
+        yhat_cal_mean = yhat_cal
+    
+    print(f"[INFO] Forecast shape for margins: {yhat_cal_mean.shape}")
+    margins_cal = build_margin_field(yhat_cal_mean, method="grad_mag", normalize=True)
     print(f"[INFO] Built margin fields: {margins_cal.shape}")
 
     # block ids: weekly (exchangeability units)
