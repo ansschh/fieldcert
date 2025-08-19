@@ -52,8 +52,12 @@ def main():
     import xarray as xr
     dummy_ds = xr.Dataset(coords={"latitude": lat, "longitude": lon})
     Wts = compute_area_weights(dummy_ds, lat_name="latitude", normalize=True)  # (H,W)
-
-    print(f"[INFO] Computed area weights: {Wts.shape}")
+    
+    # Ensure weights match data shape - transpose if needed
+    if Wts.shape != (H, W):
+        Wts = Wts.T  # Transpose to match (H,W) = (240,121)
+    
+    print(f"[INFO] Computed area weights: {Wts.shape} (should match H,W = {H},{W})")
 
     # Split into calibration/test by time
     n_train = int(np.floor(args.train_frac * Tdim))
