@@ -115,14 +115,24 @@ def main():
     da_obs_sel = da_obs.sel(time=valid_da, method="nearest", tolerance=tol)
 
     # Convert to arrays and filter by years and valid data
-    print(f"[INFO] Creating small subset for efficient processing...")
+    print(f"[INFO] Creating year-based subset for efficient processing...")
     
-    # Take only first 100 time steps to avoid memory issues with full dataset
-    max_times = min(100, da_fc.sizes['time'], da_obs_sel.sizes['time'])
-    print(f"[INFO] Processing first {max_times} time steps to avoid memory overload")
+    # Filter by requested years first, then take subset to avoid memory issues
+    years_arr = (da_fc.time.dt.year.values)
+    year_mask = (years_arr >= y0) & (years_arr <= y1)
     
-    da_fc_subset = da_fc.isel(time=slice(0, max_times))
-    da_obs_subset = da_obs_sel.isel(time=slice(0, max_times))
+    if not np.any(year_mask):
+        raise RuntimeError(f"No data available for requested years {y0}-{y1}")
+    
+    # Get indices for the requested year and take up to 100 time steps from that year
+    year_indices = np.where(year_mask)[0]
+    max_samples = min(100, len(year_indices))
+    selected_indices = year_indices[:max_samples]
+    
+    print(f"[INFO] Processing {max_samples} time steps from year {y0}-{y1}")
+    
+    da_fc_subset = da_fc.isel(time=selected_indices)
+    da_obs_subset = da_obs_sel.isel(time=selected_indices)
     
     print(f"[INFO] Loading forecast subset...")
     yhat_full = da_fc_subset.values  # Much smaller, manageable size
