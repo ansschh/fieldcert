@@ -131,12 +131,15 @@ def main():
     
     print(f"[INFO] Data shapes - forecast: {yhat_full.shape}, obs: {y_full.shape}")
 
+    # Get valid times from the subset
+    valid_times_subset = da_fc_subset.time.values
+    
     # Filter rows where truth is entirely finite
     mask_valid = np.all(np.isfinite(y_full.reshape(y_full.shape[0], -1)), axis=1)
     print(f"[INFO] Valid time steps: {np.sum(mask_valid)}/{len(mask_valid)}")
 
     # Filter by requested years
-    vt = valid_times[mask_valid]
+    vt = valid_times_subset[mask_valid]
     if vt.size == 0:
         raise RuntimeError("No valid times available after truth alignment.")
     
