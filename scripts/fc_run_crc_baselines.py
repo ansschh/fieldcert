@@ -99,7 +99,7 @@ def main():
     print(f"[INFO] Assigned {len(np.unique(block_ids_cal))} calibration blocks")
 
     crc_res = crc.fit_for_regime(
-        preds=yhat_cal,
+        preds=yhat_cal_mean,  # Use ensemble mean (T,H,W) instead of full ensemble (T,ens,lead,H,W)
         truths=y_cal,
         threshold=args.threshold,
         margins=margins_cal,
