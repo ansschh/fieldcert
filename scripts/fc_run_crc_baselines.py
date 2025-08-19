@@ -125,14 +125,10 @@ def main():
     print(f"[INFO] Test forecast shape for margins: {yhat_test_mean.shape}")
     margins_test = build_margin_field(yhat_test_mean, method="grad_mag", normalize=True)
     pred_crc = threshold_bump_mask(
-        field=yhat_test, 
+        pred_field=yhat_test_mean,  # Use ensemble mean for prediction
         threshold=float(args.threshold), 
-        lambda_bump=float(lam_star),
-        truth_mask=None,  # No truth mask needed for prediction
-        morph_operation=args.morph_op,
-        morph_radius=int(args.morph_radius),
-        morph_element="disk",
-        morph_iterations=int(args.morph_iters),
+        margin_field=margins_test,
+        lam=float(lam_star),
     )
     
     truth_test = (y_test >= float(args.threshold))
