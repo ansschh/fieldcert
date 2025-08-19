@@ -114,7 +114,16 @@ def main():
     print(f"[INFO] CRC calibrated lambda* = {lam_star:.4f}")
 
     # Apply lambda* to test set
-    margins_test = build_margin_field(yhat_test, method="grad_mag", normalize=True)
+    # Handle ensemble data for test margins (same as calibration)
+    if yhat_test.ndim == 5:  # (T, ensemble, lead, H, W)
+        yhat_test_mean = yhat_test.mean(axis=1)  # Average over ensemble
+        if yhat_test_mean.shape[1] == 1:  # Remove singleton lead dimension
+            yhat_test_mean = yhat_test_mean.squeeze(axis=1)  # (T, H, W)
+    else:
+        yhat_test_mean = yhat_test
+    
+    print(f"[INFO] Test forecast shape for margins: {yhat_test_mean.shape}")
+    margins_test = build_margin_field(yhat_test_mean, method="grad_mag", normalize=True)
     pred_crc = threshold_bump_mask(
         field=yhat_test, 
         threshold=float(args.threshold), 
