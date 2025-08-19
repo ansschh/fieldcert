@@ -151,28 +151,28 @@ def main():
     # 1) Global bump
     print("[INFO] Calibrating global bump baseline...")
     tau_star, _, _ = calibrate_global_bump_by_fpa(
-        yhat_cal, y_cal, float(args.threshold), 
+        yhat_cal_mean, y_cal, float(args.threshold), 
         alpha=float(args.alpha), spatial_weights=Wts
     )
-    pred_global = apply_global_bump(yhat_test, float(args.threshold), tau_star)
+    pred_global = apply_global_bump(yhat_test_mean, float(args.threshold), tau_star)
     print(f"[INFO] Global bump tau* = {tau_star:.4f}")
 
     # 2) Morphological CP: erosion radius
     print("[INFO] Calibrating morphological CP baseline...")
     r_star, _, _ = calibrate_morph_radius_by_fpa(
-        yhat_cal, y_cal, float(args.threshold), 
+        yhat_cal_mean, y_cal, float(args.threshold), 
         alpha=float(args.alpha), spatial_weights=Wts
     )
-    pred_morph = apply_morph_radius(yhat_test, float(args.threshold), int(r_star))
+    pred_morph = apply_morph_radius(yhat_test_mean, float(args.threshold), int(r_star))
     print(f"[INFO] Morphological CP radius* = {r_star}")
 
     # 3) Pixelwise split CP
     print("[INFO] Calibrating pixelwise CP baseline...")
     delta = calibrate_pixelwise_delta(
-        yhat_cal, y_cal, float(args.threshold), 
+        yhat_cal_mean, y_cal, float(args.threshold), 
         alpha_pixel=float(args.alpha)
     )
-    pred_pixelcp = apply_pixelwise_delta(yhat_test, float(args.threshold), delta)
+    pred_pixelcp = apply_pixelwise_delta(yhat_test_mean, float(args.threshold), delta)
     print(f"[INFO] Pixelwise CP delta range: [{np.min(delta):.4f}, {np.max(delta):.4f}]")
 
     # Evaluation for all methods
