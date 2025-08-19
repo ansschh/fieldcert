@@ -22,7 +22,7 @@ def main():
     ap.add_argument("--lead_hours", type=int, default=24, help="Forecast lead in hours (e.g., 24)")
     ap.add_argument("--years", default="2020", help="Year or range 'YYYY' or 'YYYY-YYYY'")
     ap.add_argument("--out", default="/workspace/data/subsets/wb2_subset.npz", help="Output NPZ path")
-    ap.add_argument("--forecast_path", default="gs://weatherbench2/datasets/ifs_ens/2018-2022-240x121_equiangular_with_poles_conservative_mean.zarr", help="Forecast dataset path")
+    ap.add_argument("--forecast_path", default="gs://weatherbench2/datasets/ifs_ens/2018-2022-240x121_equiangular_with_poles_conservative.zarr", help="Forecast dataset path")
     ap.add_argument("--obs_path", default="gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr", help="Truth dataset path")
     ap.add_argument("--tolerance_hours", type=int, default=3, help="Nearest-time matching tolerance for truth")
     args = ap.parse_args()

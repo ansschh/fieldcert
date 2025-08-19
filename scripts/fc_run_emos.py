@@ -23,7 +23,7 @@ def main():
     ap.add_argument("--years_cal", default="2019", help="Calibration years")
     ap.add_argument("--years_test", default="2020", help="Test years")
     ap.add_argument("--members", type=int, default=10, help="Number of ensemble members to use (<=50)")
-    ap.add_argument("--ifs_ens_path", default="gs://weatherbench2/datasets/ifs_ens/2018-2022-240x121_equiangular_with_poles_conservative.zarr")
+    ap.add_argument("--ens_path", default="gs://weatherbench2/datasets/ifs_ens/2018-2022-240x121_equiangular_with_poles_conservative.zarr")
     ap.add_argument("--era5_path", default="gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr")
     ap.add_argument("--threshold", type=float, default=20.0)
     ap.add_argument("--alpha", type=float, default=0.10, help="Target FPA for prob->set")
