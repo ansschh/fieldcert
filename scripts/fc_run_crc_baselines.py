@@ -6,7 +6,7 @@ import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'src'))
 
 from calibration import (
-    ConformalRiskControl, CRCSettings,
+    CRCCalibrator, CRCSettings,
     build_margin_field,
 )
 from calibration.morphology import threshold_bump_mask, symmetric_filter
@@ -79,7 +79,7 @@ def main():
         morph_element="disk",
         morph_iterations=int(args.morph_iters),
     )
-    crc = ConformalRiskControl(settings=settings)
+    crc = CRCCalibrator(settings=settings)
 
     # Physics-aware margin: gradient magnitude of forecast
     margins_cal = build_margin_field(yhat_cal, method="grad_mag", normalize=True)

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import numpy as np
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Dict, Optional, Sequence, Tuple, Callable, Any, Literal
 
 from .morphology import threshold_bump_mask, symmetric_filter
@@ -31,7 +31,7 @@ class CRCSettings:
     morph_iterations : repetition count for morphology
     """
     alpha: float = 0.10
-    lambda_grid: np.ndarray = np.linspace(0.0, 2.0, 41)  # 0..2 in steps of 0.05
+    lambda_grid: np.ndarray = field(default_factory=lambda: np.linspace(0.0, 2.0, 41))  # 0..2 in steps of 0.05
     slack_B: float = 1.0
     loss_type: Literal["fpa", "fna", "combined"] = "fpa"
     alpha_fp: float = 1.0
