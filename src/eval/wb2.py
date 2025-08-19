@@ -42,7 +42,7 @@ def select_forecast_lead(
     ds: xr.Dataset,
     lead_hours: Union[int, List[int]],
     *,
-    lead_dim: str = "step",
+    lead_dim: str = "prediction_timedelta",
     valid_time_var: str = "valid_time",
 ) -> xr.Dataset:
     """
@@ -69,11 +69,18 @@ def select_forecast_lead(
     
     # Find the indices corresponding to the requested lead hours
     lead_values = ds[lead_dim].values
+    
+    # Convert lead_values to hours if they are timedelta64
+    if np.issubdtype(lead_values.dtype, np.timedelta64):
+        lead_hours_array = lead_values / np.timedelta64(1, 'h')
+    else:
+        lead_hours_array = lead_values
+    
     lead_indices = []
     for lh in lead_hours:
-        idx = np.argmin(np.abs(lead_values - lh))
-        if abs(lead_values[idx] - lh) > 1:  # Allow 1 hour tolerance
-            raise ValueError(f"Lead time {lh}h not found in dataset (closest: {lead_values[idx]}h)")
+        idx = np.argmin(np.abs(lead_hours_array - lh))
+        if abs(lead_hours_array[idx] - lh) > 1:  # Allow 1 hour tolerance
+            raise ValueError(f"Lead time {lh}h not found in dataset (closest: {lead_hours_array[idx]}h)")
         lead_indices.append(idx)
     
     # Select the lead times
