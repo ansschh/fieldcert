@@ -118,10 +118,10 @@ def main():
     print(f"[INFO] Creating small subset for efficient processing...")
     
     # Take only first 100 time steps to avoid memory issues with full dataset
-    max_times = min(100, da_fc_sel.sizes['time'], da_obs_sel.sizes['time'])
+    max_times = min(100, da_fc.sizes['time'], da_obs_sel.sizes['time'])
     print(f"[INFO] Processing first {max_times} time steps to avoid memory overload")
     
-    da_fc_subset = da_fc_sel.isel(time=slice(0, max_times))
+    da_fc_subset = da_fc.isel(time=slice(0, max_times))
     da_obs_subset = da_obs_sel.isel(time=slice(0, max_times))
     
     print(f"[INFO] Loading forecast subset...")
