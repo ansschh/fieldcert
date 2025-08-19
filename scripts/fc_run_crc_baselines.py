@@ -98,12 +98,12 @@ def main():
     block_ids_cal = assign_blocks(times_cal, block="week")
     print(f"[INFO] Assigned {len(np.unique(block_ids_cal))} calibration blocks")
 
-    crc_res = crc.fit(
+    crc_res = crc.fit_for_regime(
         preds=yhat_cal,
         truths=y_cal,
         margins=margins_cal,
         block_ids=block_ids_cal,
-        regime_keys=None,  # No regime stratification for this simple example
+        regime_key=None,  # No regime stratification for this simple example
     )
     lam_star = crc_res.lambda_star
     print(f"[INFO] CRC calibrated lambda* = {lam_star:.4f}")
