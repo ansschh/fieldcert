@@ -18,7 +18,7 @@ def graphcast_path(year: int) -> str:
 
 def open_zarr(path: str, chunks="auto") -> xr.Dataset:
     storage_options = {"token": "anon"} if path.startswith("gs://") else None
-    return xr.open_zarr(path, storage_options=storage_options, chunks=chunks)
+    return xr.open_zarr(path, storage_options=storage_options, chunks=chunks, decode_timedelta=False)
 
 def select_lead(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
     for c in ("prediction_timedelta", "lead", "step"):
@@ -108,7 +108,9 @@ def main():
     f_out = os.path.join(out_root, "forecast", f"{tag}.zarr")
     ensure_dir(os.path.dirname(f_out))
     print(f"[forecast] writing: {f_out}")
-    da.to_zarr(f_out, mode="w", consolidated=True)
+    # Use compatible encoding to avoid zarr version conflicts
+    encoding = {da.name: {"compressor": None}} if da.name else {}
+    da.to_zarr(f_out, mode="w", consolidated=True, encoding=encoding)
 
     # Build ERA5 truth at the exact valid times (nearest within 3h)
     ds_obs = open_zarr(WB2_ERA5, chunks="auto")
@@ -131,7 +133,9 @@ def main():
     t_out = os.path.join(out_root, "truth", f"{tag}.zarr")
     ensure_dir(os.path.dirname(t_out))
     print(f"[truth] writing: {t_out}")
-    sel.to_zarr(t_out, mode="w", consolidated=True)
+    # Use compatible encoding to avoid zarr version conflicts
+    encoding = {sel.name: {"compressor": None}} if sel.name else {}
+    sel.to_zarr(t_out, mode="w", consolidated=True, encoding=encoding)
 
     print("[OK] Done.")
     print(f"Forecast Zarr: {f_out}")
