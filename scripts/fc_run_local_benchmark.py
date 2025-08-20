@@ -21,7 +21,7 @@ def open_local(path: str) -> xr.DataArray:
     """Open a local Zarr written by wb2_download_local.py."""
     if not os.path.isdir(path):
         raise FileNotFoundError(path)
-    da = xr.open_zarr(path, consolidated=True)
+    da = xr.open_zarr(path, consolidated=True, decode_timedelta=False)
     # result can be Dataset if saved as DA; normalize to DataArray
     if isinstance(da, xr.Dataset):
         if len(da.data_vars) != 1:
@@ -218,9 +218,31 @@ if __name__ == "__main__":
         raise RuntimeError(f"time length mismatch: forecast={da_fc.sizes['time']} truth={da_tr.sizes['time']}")
 
     # Area weights (lat/lon consistent across WB-2)
-    lat = np.asarray(da_fc["lat"].values if "lat" in da_fc.coords else da_fc["y"].values)
-    lon = np.asarray(da_fc["lon"].values if "lon" in da_fc.coords else da_fc["x"].values)
-    Wts = compute_area_weights(lat, lon, normalize=True)
+    if "lat" in da_fc.coords:
+        lat_vals = np.asarray(da_fc["lat"].values)
+    elif "latitude" in da_fc.coords:
+        lat_vals = np.asarray(da_fc["latitude"].values)
+    else:
+        lat_vals = np.asarray(da_fc["y"].values)
+
+    if "lon" in da_fc.coords:
+        lon_vals = np.asarray(da_fc["lon"].values)
+    elif "longitude" in da_fc.coords:
+        lon_vals = np.asarray(da_fc["longitude"].values)
+    else:
+        lon_vals = np.asarray(da_fc["x"].values)
+
+    dummy_ds = xr.Dataset(coords={
+        "latitude": ("latitude", lat_vals),
+        "longitude": ("longitude", lon_vals),
+    })
+    Wts = compute_area_weights(dummy_ds, lat_name="latitude", normalize=True)
+    hw = da_fc.isel(time=0).shape
+    if Wts.shape != hw:
+        if Wts.T.shape == hw:
+            Wts = Wts.T
+        else:
+            raise ValueError(f"Area weights shape {Wts.shape} does not match data shape {hw}")
 
     # Split cal/test by time (70/30 split of local Zarr)
     T = da_fc.sizes["time"]
