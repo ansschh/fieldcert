@@ -23,15 +23,15 @@ def open_zarr(path: str, chunks="auto") -> xr.Dataset:
 def select_lead(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
     for c in ("prediction_timedelta", "lead", "step"):
         if c in da.coords:
-            # Handle both timedelta and integer lead time formats
+            # Robustly select nearest lead by index, then drop/squeeze the lead dim
             coord_vals = da.coords[c].values
             if np.issubdtype(coord_vals.dtype, np.timedelta64):
-                # Timedelta format: use timedelta64
-                target = np.timedelta64(int(lead_hours), "h")
+                hours = (coord_vals / np.timedelta64(1, "h")).astype(np.float64)
             else:
-                # Integer format (hours): use integer
-                target = int(lead_hours)
-            return da.sel({c: target}, method="nearest")
+                hours = coord_vals.astype(np.float64)
+            idx = int(np.argmin(np.abs(hours - float(lead_hours))))
+            out = da.isel({c: idx}).squeeze(drop=True)
+            return out
     raise KeyError(f"No lead coord among ('prediction_timedelta','lead','step'); got {list(da.coords)}")
 
 def std_coords(da: xr.DataArray) -> xr.DataArray:
@@ -41,6 +41,11 @@ def std_coords(da: xr.DataArray) -> xr.DataArray:
         da = da.rename({"latitude": "lat"})
     if "longitude" in da.dims and "lon" not in da.dims:
         da = da.rename({"longitude": "lon"})
+    # Drop any leftover singleton dims (e.g., height=1)
+    da = da.squeeze(drop=True)
+    # Standardize ordering to (time, lat, lon) when available
+    if all(k in da.dims for k in ("time", "lat", "lon")):
+        return da.transpose("time", "lat", "lon")
     return da.transpose("time", ...,)
 
 def parse_years(s: str) -> tuple[int,int]:
@@ -77,6 +82,15 @@ def main():
         ds_fc = open_zarr(WB2_ENS_MEAN, chunks="auto")
         if variable not in ds_fc: raise KeyError(f"{variable} not in ENS-mean.")
         da = std_coords(select_lead(ds_fc[variable], lead_h))
+        # If an ensemble/member dimension exists, average to create deterministic mean
+        for ens_dim in ("number", "member", "ens", "ensemble", "realization"):
+            if ens_dim in da.dims:
+                da = da.mean(ens_dim)
+        # Drop any other non-spatial singleton dims
+        da = da.squeeze(drop=True)
+        # Ensure final ordering is (time, lat, lon)
+        if all(k in da.dims for k in ("time", "lat", "lon")):
+            da = da.transpose("time", "lat", "lon")
         times = da["time"].values.astype("datetime64[ns]")
         valid_times = times + np.timedelta64(lead_h, "h")
         y0,y1 = parse_years(args.years)

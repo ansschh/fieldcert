@@ -17,7 +17,9 @@ from eval import compute_area_weights  # type: ignore
 # ------------------ Utilities ------------------
 
 def open_local(path: str) -> xr.DataArray:
-    """Open a local Zarr written by wb2_download_local.py."""
+    """Open a local Zarr written by wb2_download_local.py.
+    Standardize to dims (time, lat, lon) and drop any singleton extras.
+    """
     if not os.path.isdir(path):
         raise FileNotFoundError(path)
     da = xr.open_zarr(path, consolidated=True, decode_timedelta=False)
@@ -25,13 +27,46 @@ def open_local(path: str) -> xr.DataArray:
         if len(da.data_vars) != 1:
             raise ValueError(f"Expected one variable in {path}, found {list(da.data_vars)}")
         da = da[list(da.data_vars)[0]]
+    # rename standard coords
     if "time" not in da.coords and "forecast_time" in da.coords:
         da = da.rename({"forecast_time": "time"})
     if "latitude" in da.dims and "lat" not in da.dims:
         da = da.rename({"latitude": "lat"})
     if "longitude" in da.dims and "lon" not in da.dims:
         da = da.rename({"longitude": "lon"})
-    return da.transpose("time", ...).chunk({"time": da.chunks["time"][0] if "time" in da.chunks else 64})
+    if "y" in da.dims and "lat" not in da.dims:
+        da = da.rename({"y": "lat"})
+    if "x" in da.dims and "lon" not in da.dims:
+        da = da.rename({"x": "lon"})
+    # average over any ensemble/member dimension if present
+    for ens_dim in ("number", "member", "ens", "ensemble", "realization"):
+        if ens_dim in da.dims and int(da.sizes[ens_dim]) > 1:
+            da = da.mean(ens_dim)
+    # drop any leftover singleton dimensions (e.g., lead=1, height=1)
+    da = da.squeeze(drop=True)
+    # enforce (time, lat, lon) if available
+    if all(k in da.dims for k in ("time", "lat", "lon")):
+        da = da.transpose("time", "lat", "lon")
+    else:
+        da = da.transpose("time", ...)
+    # chunk by time, default chunk size 64 if missing chunks
+    return da.chunk({"time": da.chunks["time"][0] if hasattr(da, "chunks") and "time" in da.chunks else 64})
+
+def select_nearest_lead_da(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
+    """If a lead dimension exists (prediction_timedelta/lead/step), select the nearest lead and squeeze."""
+    for c in ("prediction_timedelta", "lead", "step"):
+        if (c in da.coords) or (c in da.dims):
+            vals = da[c].values
+            if np.issubdtype(vals.dtype, np.timedelta64):
+                hours = (vals / np.timedelta64(1, "h")).astype(np.float64)
+            else:
+                try:
+                    hours = vals.astype(np.float64)
+                except Exception:
+                    continue
+            idx = int(np.argmin(np.abs(hours - float(lead_hours))))
+            return da.isel({c: idx}).squeeze(drop=True)
+    return da
 
 def grad_mag_norm(frames: np.ndarray) -> np.ndarray:
     """Per-frame gradient magnitude, normalized to [0,1] per frame."""
@@ -233,6 +268,8 @@ if __name__ == "__main__":
 
     # Open local Zarrs
     da_fc = open_local(args.forecast_zarr)
+    # If a lead dim slipped through in the saved Zarr, select nearest and squeeze
+    da_fc = select_nearest_lead_da(da_fc, int(args.lead_hours))
     da_tr = open_local(args.truth_zarr)
     if da_fc.sizes["time"] != da_tr.sizes["time"]:
         raise RuntimeError(f"time length mismatch: forecast={da_fc.sizes['time']} truth={da_tr.sizes['time']}")
@@ -258,13 +295,24 @@ if __name__ == "__main__":
         "longitude": ("longitude", lon_vals),
     })
     Wts = compute_area_weights(dummy_ds, lat_name="latitude", normalize=True)
-    # Ensure orientation matches data (H,W)
-    hw = da_fc.isel(time=0).shape
-    if Wts.shape != hw:
-        if Wts.T.shape == hw:
+    # Ensure orientation matches spatial dims (H, W)
+    if "lat" in da_fc.dims and "lon" in da_fc.dims:
+        H, W = int(da_fc.sizes["lat"]), int(da_fc.sizes["lon"])
+    elif "y" in da_fc.dims and "x" in da_fc.dims:
+        H, W = int(da_fc.sizes["y"]), int(da_fc.sizes["x"])
+    elif "latitude" in da_fc.dims and "longitude" in da_fc.dims:
+        H, W = int(da_fc.sizes["latitude"]), int(da_fc.sizes["longitude"])
+    else:
+        # fallback to using a time slice but prefer dims when possible
+        shp = da_fc.isel(time=0).shape
+        if len(shp) < 2:
+            raise ValueError(f"Cannot infer spatial dims for area weights from shape {shp}")
+        H, W = int(shp[-2]), int(shp[-1])
+    if Wts.shape != (H, W):
+        if Wts.T.shape == (H, W):
             Wts = Wts.T
         else:
-            raise ValueError(f"Area weights shape {Wts.shape} does not match data shape {hw}")
+            raise ValueError(f"Area weights shape {Wts.shape} does not match spatial dims {(H, W)}; da dims={da_fc.dims}")
 
     # 70/30 split
     T = da_fc.sizes["time"]
