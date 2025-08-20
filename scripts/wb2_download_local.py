@@ -23,7 +23,8 @@ def open_zarr(path: str, chunks="auto") -> xr.Dataset:
 def select_lead(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
     for c in ("prediction_timedelta", "lead", "step"):
         if c in da.coords:
-            return da.sel({c: np.timedelta64(int(lead_hours), "h")})
+            # Use nearest method to handle slight mismatches in available lead times
+            return da.sel({c: np.timedelta64(int(lead_hours), "h")}, method="nearest")
     raise KeyError(f"No lead coord among ('prediction_timedelta','lead','step'); got {list(da.coords)}")
 
 def std_coords(da: xr.DataArray) -> xr.DataArray:
