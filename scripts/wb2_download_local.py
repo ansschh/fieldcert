@@ -4,9 +4,9 @@ import os, sys, argparse
 import numpy as np
 import xarray as xr
 
-# WB-2 public buckets (240x121 equiangular) - WORKING PATHS
+# WB-2 public buckets (240x121 equiangular) - VERIFIED WORKING PATHS
 WB2_ERA5 = "gs://weatherbench2/datasets/era5/1959-2023_01_10-6h-240x121_equiangular_with_poles_conservative.zarr"
-WB2_ENS_MEAN = "gs://weatherbench2/datasets/ens/2018-2022-6h-240x121_equiangular_with_poles_conservative.zarr"
+WB2_ENS_MEAN = "gs://weatherbench2/datasets/ifs_ens/2018-2022-240x121_equiangular_with_poles_conservative.zarr"
 WB2_NEURALGCM_2020 = "gs://weatherbench2/datasets/neuralgcm_deterministic/2020-240x121_equiangular_with_poles_conservative.zarr"
 
 def graphcast_path(year: int) -> str:
