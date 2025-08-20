@@ -1,0 +1,12 @@
+{
+  "provider": "ifs_mean",
+  "variable": "10m_wind_speed",
+  "lead_hours": [24],
+  "years": "2020-2020",
+  "threshold": 15.0,
+  "alpha": 0.10,
+  "time_chunk": 16,
+  "examples_topk": 2,
+  "max_cases": 2,
+  "description": "Minimal test configuration for pipeline validation"
+}
