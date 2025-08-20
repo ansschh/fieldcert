@@ -83,6 +83,8 @@ def main():
         mask = year_mask(valid_times, y0, y1)
         if not np.any(mask): raise RuntimeError("No times in requested year window for this lead.")
         da = da.sel(time=da["time"].values[mask])
+        # Ensure truth selection uses the same filtered valid times
+        valid_times = valid_times[mask]
         tag = f"ifs_mean__{variable}__L{lead_h}h__{y0}-{y1}"
 
     elif provider == "graphcast2018":

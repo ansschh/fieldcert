@@ -20,7 +20,7 @@ def open_local(path: str) -> xr.DataArray:
     """Open a local Zarr written by wb2_download_local.py."""
     if not os.path.isdir(path):
         raise FileNotFoundError(path)
-    da = xr.open_zarr(path, consolidated=True)
+    da = xr.open_zarr(path, consolidated=True, decode_timedelta=False)
     if isinstance(da, xr.Dataset):
         if len(da.data_vars) != 1:
             raise ValueError(f"Expected one variable in {path}, found {list(da.data_vars)}")

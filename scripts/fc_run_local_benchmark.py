@@ -1,9 +1,9 @@
 # scripts/fc_run_local_benchmark.py
 from __future__ import annotations
-import os, sys, argparse, json
+import os, sys, argparse, json, heapq
 import numpy as np
 import xarray as xr
-from typing import Dict, Any, Tuple, Optional
+from typing import Dict, Any, Tuple, Optional, List
 
 # make src/ importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
@@ -14,6 +14,8 @@ from baselines import calibrate_global_bump_by_fpa, apply_global_bump  # type: i
 from baselines import calibrate_morph_radius_by_fpa, apply_morph_radius  # type: ignore
 from baselines.emos_eval import prob_to_set_calibrate_threshold, evaluate_prob_event_baseline  # type: ignore
 from eval import compute_area_weights  # type: ignore
+
+# ------------------ Utilities ------------------
 
 def open_local(path: str) -> xr.DataArray:
     """Open a local Zarr written by wb2_download_local.py."""
