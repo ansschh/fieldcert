@@ -28,7 +28,11 @@ SUBSET_FILE = $(SUBSETS_DIR)/$(SUBSET_NAME).npz
 METRICS_FILE = $(RESULTS_DIR)/metrics_$(SUBSET_NAME).json
 EMOS_FILE = $(RESULTS_DIR)/emos_$(VARIABLE)_$(LEAD_HOURS)h_$(YEARS_CAL)to$(YEARS_TEST).json
 
-.PHONY: help setup dirs clean all subset baselines emos results
+# Comprehensive evaluation on full dataset with multiple models and UQ methods
+COMPREHENSIVE_OUTPUT = results/comprehensive
+COMPREHENSIVE_YEARS = 2020 2021
+
+.PHONY: help setup dirs clean all subset baselines emos results comprehensive comprehensive-quick comprehensive-full
 
 help:
 	@echo "FieldCert-Weather RunPod Pipeline"
@@ -103,19 +107,19 @@ $(EMOS_FILE): dirs
 
 results:
 	@echo "=== FieldCert-Weather Results Summary ==="
-	@if [ -f "$(METRICS_FILE)" ]; then \
-		echo ""; \
-		echo "Set-valued methods ($(SUBSET_NAME)):"; \
-		$(VENV_PYTHON) -c "import json; data=json.load(open('$(METRICS_FILE)')); print('  Threshold:', data['threshold']); print('  Target FPA (alpha):', data['alpha']); print(''); [print(f'  {k:15s}: FPA={v[\"fpa\"]:.4f}, FNA={v[\"fna\"]:.4f}, IoU={v[\"iou\"]:.4f}') for k,v in data['metrics'].items()]"; \
+	@echo ""
+	@echo "Set-valued methods ($(SUBSET_NAME)):"
+	@echo "  Threshold: $(THRESHOLD)"
+	@echo "  Target FPA (alpha): $(ALPHA)"
+	@echo ""
+	@if [ -f "$(RESULTS_DIR)/metrics_$(SUBSET_NAME).json" ]; then \
+		python -c "import json; data=json.load(open('$(RESULTS_DIR)/metrics_$(SUBSET_NAME).json')); \
+		[print(f'  {k:14}: FPA={v[\"fpa\"]:.4f}, FNA={v[\"fna\"]:.4f}, IoU={v[\"iou\"]:.4f}') for k,v in data.items() if isinstance(v, dict) and 'fpa' in v]"; \
 	else \
-		echo "No baseline results found. Run 'make baselines' first."; \
+		echo "  No results found. Run 'make all' first."; \
 	fi
-	@if [ -f "$(EMOS_FILE)" ]; then \
-		echo ""; \
-		echo "EMOS probabilistic baseline:"; \
-		$(VENV_PYTHON) -c "import json; data=json.load(open('$(EMOS_FILE)')); m=data['metrics']; print(f'  Brier Score: {m[\"brier_score\"]:.4f}'); print(f'  Brier Skill Score: {m[\"brier_skill_score\"]:.4f}'); print(f'  Set FPA: {m.get(\"set_fpa\", \"N/A\")}'); print(f'  Set FNA: {m.get(\"set_fna\", \"N/A\")}')"; \
-	else \
-		echo ""; \
+	@echo ""
+	@if [ ! -f "$(RESULTS_DIR)/emos_$(SUBSET_NAME).json" ]; then \
 		echo "No EMOS results found. Run 'make emos' to include probabilistic baseline."; \
 	fi
 
@@ -157,3 +161,37 @@ test-setup:
 list-files:
 	@echo "Generated files:"
 	@find $(DATA_DIR) $(RESULTS_DIR) -name "*.npz" -o -name "*.json" 2>/dev/null | sort || echo "No files found"
+
+comprehensive:
+	@echo "Running comprehensive FieldCert evaluation..."
+	mkdir -p $(COMPREHENSIVE_OUTPUT)
+	$(VENV_PYTHON) scripts/fc_comprehensive_eval.py \
+		--output $(COMPREHENSIVE_OUTPUT) \
+		--variable $(VARIABLE) \
+		--threshold $(THRESHOLD) \
+		--years $(COMPREHENSIVE_YEARS)
+	@echo "Comprehensive evaluation complete!"
+	@echo "Results saved to: $(COMPREHENSIVE_OUTPUT)"
+	@echo "View summary tables: ls $(COMPREHENSIVE_OUTPUT)/*.csv"
+	@echo "View plots: ls $(COMPREHENSIVE_OUTPUT)/plots/*.png"
+
+comprehensive-quick:
+	@echo "Running quick comprehensive evaluation (500 samples)..."
+	mkdir -p $(COMPREHENSIVE_OUTPUT)
+	$(VENV_PYTHON) scripts/fc_comprehensive_eval.py \
+		--output $(COMPREHENSIVE_OUTPUT) \
+		--variable $(VARIABLE) \
+		--threshold $(THRESHOLD) \
+		--years 2020 \
+		--max-samples 500
+	@echo "Quick comprehensive evaluation complete!"
+
+comprehensive-full:
+	@echo "Running FULL comprehensive evaluation (all data)..."
+	mkdir -p $(COMPREHENSIVE_OUTPUT)
+	$(VENV_PYTHON) scripts/fc_comprehensive_eval.py \
+		--output $(COMPREHENSIVE_OUTPUT) \
+		--variable $(VARIABLE) \
+		--threshold $(THRESHOLD) \
+		--years 2020 2021 2022
+	@echo "FULL comprehensive evaluation complete!"
