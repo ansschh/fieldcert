@@ -65,13 +65,19 @@ def plot_validity_curves(df: pd.DataFrame, provider: str, variables: List[str], 
     Plots empirical FPA vs target alpha for each method, separately for each (variable, lead).
     Input df must contain columns: provider, variable, lead_hours, alpha_from_dir/alpha, method, fpa
     """
-    sub = df[df["provider"] == provider].copy()
-    if sub.empty:
+    cols = set(df.columns)
+    sub = df[df["provider"] == provider].copy() if ("provider" in cols) else df.copy()
+    if ("provider" in cols) and sub.empty:
         print(f"[WARN] no rows for provider={provider}")
         return
     for var in variables:
         for L in leads:
-            ss = sub[(sub["variable"] == var) & (sub["lead_hours"] == L)]
+            mask = np.ones(len(sub), dtype=bool)
+            if "variable" in sub.columns:
+                mask &= (sub["variable"] == var)
+            if "lead_hours" in sub.columns:
+                mask &= (sub["lead_hours"] == L)
+            ss = sub[mask]
             if ss.empty:
                 print(f"[WARN] no rows for {provider}/{var}/{L}h")
                 continue
@@ -107,13 +113,24 @@ def plot_validity_curves(df: pd.DataFrame, provider: str, variables: List[str], 
 
 # ---------- F3: Sharpness frontier (FNA vs IoU at fixed α) ----------
 def plot_sharpness_frontier(df: pd.DataFrame, provider: str, alpha: float, variables: List[str], leads: List[int], outdir: str):
-    sub = df[(df["provider"] == provider) & (np.isclose(df["alpha_from_dir"], alpha))]
+    cols = set(df.columns)
+    mask = np.ones(len(df), dtype=bool)
+    if "provider" in cols:
+        mask &= (df["provider"] == provider)
+    if "alpha_from_dir" in cols:
+        mask &= np.isclose(df["alpha_from_dir"], alpha)
+    sub = df[mask].copy()
     if sub.empty:
         print(f"[WARN] no rows for provider={provider} at alpha={alpha}")
         return
     for var in variables:
         for L in leads:
-            ss = sub[(sub["variable"] == var) & (sub["lead_hours"] == L)]
+            mask2 = np.ones(len(sub), dtype=bool)
+            if "variable" in sub.columns:
+                mask2 &= (sub["variable"] == var)
+            if "lead_hours" in sub.columns:
+                mask2 &= (sub["lead_hours"] == L)
+            ss = sub[mask2]
             if ss.empty:
                 print(f"[WARN] no rows for {provider}/{var}/{L}h @alpha={alpha}")
                 continue
