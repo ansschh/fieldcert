@@ -148,7 +148,11 @@ class FieldCertPipeline:
             
             for lead in leads:
                 # Build paths
-                tag = f"{provider}__{variable}__L{lead}h__{years}"
+                # Downloader naming: ifs_mean includes years; fixed subsets (graphcast2018/2020, neuralgcm2020) do not
+                if provider == "ifs_mean":
+                    tag = f"{provider}__{variable}__L{lead}h__{years}"
+                else:
+                    tag = f"{provider}__{variable}__L{lead}h"
                 forecast_zarr = self.data_dir / "forecast" / f"{tag}.zarr"
                 truth_zarr = self.data_dir / "truth" / f"{tag}.zarr"
                 
@@ -190,7 +194,11 @@ class FieldCertPipeline:
                         for threshold in thresholds:
                             for alpha in alphas:
                                 # Build paths
-                                tag = f"{provider}__{variable}__L{lead}h__{years}"
+                                # Downloader naming: ifs_mean includes years; fixed subsets (graphcast2018/2020, neuralgcm2020) do not
+                                if provider == "ifs_mean":
+                                    tag = f"{provider}__{variable}__L{lead}h__{years}"
+                                else:
+                                    tag = f"{provider}__{variable}__L{lead}h"
                                 forecast_zarr = self.data_dir / "forecast" / f"{tag}.zarr"
                                 truth_zarr = self.data_dir / "truth" / f"{tag}.zarr"
                                 
