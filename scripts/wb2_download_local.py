@@ -136,7 +136,8 @@ def main():
     print(f"[forecast] writing: {f_out}")
     # Use compatible encoding to avoid zarr version conflicts
     encoding = {da.name: {"compressor": None}} if da.name else {}
-    da.to_zarr(f_out, mode="w", consolidated=True, encoding=encoding)
+    # Explicitly write Zarr v2 to remain compatible across environments
+    da.to_zarr(f_out, mode="w", consolidated=True, encoding=encoding, zarr_version=2)
 
     # Build ERA5 truth at the exact valid times (nearest within 3h)
     ds_obs = open_zarr(WB2_ERA5, chunks="auto")
@@ -161,7 +162,8 @@ def main():
     print(f"[truth] writing: {t_out}")
     # Use compatible encoding to avoid zarr version conflicts
     encoding = {sel.name: {"compressor": None}} if sel.name else {}
-    sel.to_zarr(t_out, mode="w", consolidated=True, encoding=encoding)
+    # Explicitly write Zarr v2 to remain compatible across environments
+    sel.to_zarr(t_out, mode="w", consolidated=True, encoding=encoding, zarr_version=2)
 
     print("[OK] Done.")
     print(f"Forecast Zarr: {f_out}")
