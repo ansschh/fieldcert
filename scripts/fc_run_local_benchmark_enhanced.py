@@ -75,11 +75,29 @@ def grad_mag_norm(frames: np.ndarray) -> np.ndarray:
     out = np.empty_like(frames, dtype=np.float64)
     for i in range(T):
         f = frames[i]
+        # Robust to NaNs in frames: replace NaNs with per-frame median (or zeros if all-NaN)
+        if np.isnan(f).any():
+            if np.isnan(f).all():
+                f = np.zeros_like(f)
+            else:
+                med = float(np.nanmedian(f))
+                f = np.where(np.isnan(f), med, f)
         gy, gx = np.gradient(f)
         mag = np.hypot(gx, gy)
-        m = float(np.max(mag))
+        m = float(np.nanmax(mag))
         out[i] = (mag / m) if m > 0 else 0.0
     return out
+
+def iso_predict_safe(iso, arr: np.ndarray) -> np.ndarray:
+    """Apply isotonic predict on arr with NaN-safe handling (NaNs -> prob 0).
+    Returns an array of same shape as arr.
+    """
+    flat = arr.ravel()
+    mask = np.isfinite(flat)
+    out = np.zeros_like(flat, dtype=np.float64)
+    if np.any(mask):
+        out[mask] = iso.predict(flat[mask])
+    return out.reshape(arr.shape)
 
 def iterate_chunks(da_fc: xr.DataArray, da_tr: xr.DataArray, chunk_t: int):
     """Yield aligned numpy blocks of (yhat, y)."""
@@ -166,7 +184,7 @@ def evaluate_streaming_all(
             pred_morph[t] = morphological_filter(base[t], operation="erode",
                                                  radius=int(params["r_star"]), element="disk", iterations=1)
         iso = params["iso"]; p_star = float(params["p_star"])
-        prob = iso.predict(yhat_blk.ravel()).reshape(yhat_blk.shape)
+        prob = iso_predict_safe(iso, yhat_blk)
         pred_prob = (prob >= p_star)
 
         # optional symmetric morph for CRC only (keeps truth aligned to filtering)
@@ -384,10 +402,16 @@ if __name__ == "__main__":
     Xs: list[np.ndarray] = []; Ys: list[np.ndarray] = []
     remain = int(args.iso_max_samples)
     for _, _, yhat_blk, y_blk in iterate_chunks(da_fc_cal, da_tr_cal, int(args.time_chunk)):
-        x = yhat_blk.ravel(); ybin = (y_blk >= Tval).astype(np.int8).ravel()
-        n = x.shape[0]; take = min(remain, n)
+        x = yhat_blk.ravel(); yflat = y_blk.ravel()
+        valid = np.isfinite(x) & np.isfinite(yflat)
+        if not np.any(valid):
+            continue
+        ybin = (yflat >= Tval).astype(np.int8)
+        idx_all = np.where(valid)[0]
+        n_valid = idx_all.shape[0]
+        take = min(remain, n_valid)
         if take > 0:
-            idx = rng.choice(n, size=take, replace=False)
+            idx = rng.choice(idx_all, size=take, replace=False)
             Xs.append(x[idx]); Ys.append(ybin[idx]); remain -= take
         if remain <= 0:
             break
@@ -399,7 +423,7 @@ if __name__ == "__main__":
     p_grid = np.linspace(0.0, 1.0, 101, dtype=np.float64)
     num = np.zeros_like(p_grid); count = 0
     for _, _, yhat_blk, y_blk in iterate_chunks(da_fc_cal, da_tr_cal, int(args.time_chunk)):
-        prob = iso.predict(yhat_blk.ravel()).reshape(yhat_blk.shape)
+        prob = iso_predict_safe(iso, yhat_blk)
         truth = (y_blk >= Tval)
         for j, thr in enumerate(p_grid):
             pred = (prob >= thr)
