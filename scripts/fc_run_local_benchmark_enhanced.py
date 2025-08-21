@@ -55,7 +55,8 @@ def open_local(path: str) -> xr.DataArray:
 def select_nearest_lead_da(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
     """If a lead dimension exists (prediction_timedelta/lead/step), select the nearest lead and squeeze."""
     for c in ("prediction_timedelta", "lead", "step"):
-        if (c in da.coords) or (c in da.dims):
+        # Only select if this is truly a dimension; some datasets carry these as aux coords.
+        if c in da.dims:
             vals = da[c].values
             if np.issubdtype(vals.dtype, np.timedelta64):
                 hours = (vals / np.timedelta64(1, "h")).astype(np.float64)
