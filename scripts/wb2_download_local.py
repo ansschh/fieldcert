@@ -22,7 +22,7 @@ def open_zarr(path: str, chunks="auto") -> xr.Dataset:
 
 def select_lead(da: xr.DataArray, lead_hours: int) -> xr.DataArray:
     for c in ("prediction_timedelta", "lead", "step"):
-        if c in da.coords:
+        if (c in da.coords) or (c in da.dims):
             # Robustly select nearest lead by index, then drop/squeeze the lead dim
             coord_vals = da.coords[c].values
             if np.issubdtype(coord_vals.dtype, np.timedelta64):
@@ -43,10 +43,10 @@ def std_coords(da: xr.DataArray) -> xr.DataArray:
         da = da.rename({"longitude": "lon"})
     # Drop any leftover singleton dims (e.g., height=1)
     da = da.squeeze(drop=True)
-    # Standardize ordering to (time, lat, lon) when available
+    # Standardize ordering to prioritize (time, lat, lon) but allow extras via '...'
     if all(k in da.dims for k in ("time", "lat", "lon")):
-        return da.transpose("time", "lat", "lon")
-    return da.transpose("time", ...,)
+        return da.transpose("time", "lat", "lon", ...)
+    return da.transpose("time", ...)
 
 def parse_years(s: str) -> tuple[int,int]:
     if "-" in s: a,b = s.split("-"); return int(a), int(b)
@@ -81,16 +81,18 @@ def main():
     if provider == "ifs_mean":
         ds_fc = open_zarr(WB2_ENS_MEAN, chunks="auto")
         if variable not in ds_fc: raise KeyError(f"{variable} not in ENS-mean.")
-        da = std_coords(select_lead(ds_fc[variable], lead_h))
-        # If an ensemble/member dimension exists, average to create deterministic mean
+        # Start from raw variable, reduce any ensemble dim first
+        da = ds_fc[variable]
         for ens_dim in ("number", "member", "ens", "ensemble", "realization"):
             if ens_dim in da.dims:
                 da = da.mean(ens_dim)
+        # Select the desired lead and standardize coords
+        da = std_coords(select_lead(da, lead_h))
         # Drop any other non-spatial singleton dims
         da = da.squeeze(drop=True)
         # Ensure final ordering is (time, lat, lon)
         if all(k in da.dims for k in ("time", "lat", "lon")):
-            da = da.transpose("time", "lat", "lon")
+            da = da.transpose("time", "lat", "lon", ...)
         times = da["time"].values.astype("datetime64[ns]")
         valid_times = times + np.timedelta64(lead_h, "h")
         y0,y1 = parse_years(args.years)
